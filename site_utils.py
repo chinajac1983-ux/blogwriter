@@ -88,9 +88,14 @@ def circuit_requires_new_test(client):
 
 
 def site_public_payload(site):
-    """站点信息对前端输出的安全版本：永远不返回 WordPress 应用密码明文。"""
+    """站点信息对前端输出的安全版本：永远不返回 WordPress 应用密码明文。
+
+    包含所有前端需要的 site 字段，敏感字段（wp_app_password）永远不输出。
+    setup 回显、dashboard 内容配置、status 接口均依赖此函数。
+    """
     if not site:
         return {
+            # WordPress 连接
             "wp_url": None,
             "wp_username": "",
             "wp_app_password_set": False,
@@ -99,8 +104,26 @@ def site_public_payload(site):
             "wp_test_passed": False,
             "wp_test_passed_at": None,
             "wp_test_post_id": None,
+            # 基础信息
+            "brand_name": "",
+            "site_url": "",
+            "markets": "",
+            "language": "",
+            "configured_at": None,
+            # 产品描述
+            "product_desc": "",
+            # 内容配置
+            "target_customer": "",
+            "customer_pain": "",
+            "win_reason": "",
+            "competitors": "",
+            "references": "",
+            "topic_keywords": "",
+            "user_industries": "",
+            "user_buyer_types": "",
         }
     return {
+        # WordPress 连接
         "wp_url": site.wp_url,
         "wp_username": site.wp_username or "",
         "wp_app_password_set": bool(site.wp_app_password),
@@ -109,4 +132,21 @@ def site_public_payload(site):
         "wp_test_passed": site_wp_test_is_current(site),
         "wp_test_passed_at": utc_to_cst_str(site.wp_test_passed_at) if site.wp_test_passed_at else None,
         "wp_test_post_id": site.wp_test_post_id,
+        # 基础信息
+        "brand_name": site.brand_name or "",
+        "site_url": site.site_url or "",
+        "markets": site.markets or "",
+        "language": site.language or "",
+        "configured_at": utc_to_cst_str(site.configured_at) if site.configured_at else None,
+        # 产品描述
+        "product_desc": site.product_desc or "",
+        # 内容配置（对应 dashboard 内容配置视图和 article_generator optional_context）
+        "target_customer": site.target_customer or "",
+        "customer_pain": site.customer_pain or "",
+        "win_reason": site.win_reason or "",
+        "competitors": site.competitors or "",
+        "references": site.references or "",
+        "topic_keywords": site.topic_keywords or "",
+        "user_industries": site.user_industries or "",
+        "user_buyer_types": site.user_buyer_types or "",
     }

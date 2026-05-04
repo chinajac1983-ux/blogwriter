@@ -11,13 +11,14 @@ import secrets
 from datetime import datetime, timedelta
 import math
 import logging
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, make_response
+from product_texts import get_payment_subject
 
 from extensions import db
-from auth_utils import require_client, generate_token, hash_password, verify_and_upgrade_password
+from auth_utils import require_client, generate_token, hash_password, verify_and_upgrade_password, verify_token, is_token_revoked
 from config import RESET_TOKEN_EXPIRE_MINUTES, FRONTEND_BASE_URL, SHANGHAI_TZ, UTC_TZ
 
-from models import Client, Site, Schedule, Article, PaymentOrder, PasswordReset, SubscriptionCycle, Signal
+from models import Client, Site, Schedule, Article, PaymentOrder, PasswordReset, SubscriptionCycle, Signal, RevokedToken
 from rate_limit import check_register_rate_limit, check_login_rate_limit
 from price_utils import plan_config
 from payment_utils import generate_order_no, handle_verified_payment
@@ -59,6 +60,129 @@ def public_plans():
             })
     return jsonify(plans)
 
+@client_bp.route("/create-order", methods=["POST"])
+@require_client
+def create_order():
+    data = request.get_json() or {}
+    client = g.client
+    plan = data.get("plan", "standard")
+    billing = data.get("billing", "monthly")
+    pay_method = data.get("pay_method", "wechat")
+
+    cfg = plan_config(plan, billing)
+    if cfg["amount"] <= 0:
+        return jsonify({"error": "无效套餐"}), 400
+
+    paid_count = SubscriptionCycle.query.filter_by(client_id=client.id).count()
+    if plan == "trial" and (client.is_active or paid_count > 0):
+        return jsonify({"error": "首月体验价仅限未付费用户", "error_code": "TRIAL_NOT_ELIGIBLE"}), 403
+
+    order = PaymentOrder(
+        order_no=generate_order_no(),
+        client_id=client.id,
+        plan=plan,
+        billing=billing,
+        amount=cfg["amount"],
+        pay_method=pay_method,
+        status="pending"
+    )
+    db.session.add(order)
+    db.session.commit()
+
+    pay_params = {}
+    try:
+        if pay_method == "wechat":
+            from payment_utils import wechat_create_native_order
+            code_url = wechat_create_native_order(order.order_no, cfg["amount"])
+            pay_params = {"code_url": code_url}
+
+        elif pay_method == "alipay":
+            from payment_utils import alipay_create_page_order
+            is_mobile = "Mobile" in request.headers.get("User-Agent", "")
+
+            subject = get_payment_subject(order.plan, order.billing)
+
+            pay_url = alipay_create_page_order(
+                order.order_no,
+                cfg["amount"] / 100,
+                subject=subject,
+                is_mobile=is_mobile
+            )
+
+            pay_params = {"pay_url": pay_url}
+
+    except Exception as e:
+        log.warning(f"[Order] 生成支付参数失败：{e}")
+
+    return jsonify({
+        "order_no": order.order_no,
+        "amount": order.amount,
+        "plan": plan,
+        "billing": billing,
+        "pay_method": pay_method,
+        "email": client.email,
+        "pay_params": pay_params
+    })
+
+
+@client_bp.route("/check-payment", methods=["GET"])
+@require_client
+def check_payment():
+    order_no = request.args.get("order_no")
+    order = PaymentOrder.query.filter_by(order_no=order_no).first()
+
+    if not order:
+        return jsonify({"error": "订单不存在"}), 404
+
+    if order.client_id != g.client.id:
+        return jsonify({"error": "unauthorized"}), 403
+
+    return jsonify({
+        "order_no": order.order_no,
+        "status": order.status,
+        "paid": order.status == "paid"
+    })
+
+
+@client_bp.route("/wechat-notify", methods=["POST"])
+def wechat_notify():
+    """微信支付回调：使用 wechatpayv3 SDK 验签并解析数据。"""
+    try:
+        from payment_utils import wechat_verify_notify
+        verified, data = wechat_verify_notify()
+
+        if not verified:
+            log.warning("[WeChat] 收到未验签或验签失败的回调，已拒绝")
+            return "<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[SIGNATURE_INVALID]]></return_msg></xml>", 400
+
+        handle_verified_payment(data["order_no"], data["amount"], "wechat", data["trade_no"])
+        return "<xml><return_code><![CDATA[SUCCESS]]></return_code></xml>", 200
+
+    except Exception as e:
+        db.session.rollback()
+        log.error(f"[WeChat] 回调处理失败：{e}")
+        return "<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[PAYMENT_PROCESS_FAILED]]></return_msg></xml>", 400
+
+
+@client_bp.route("/alipay-notify", methods=["POST"])
+def alipay_notify():
+    """支付宝回调：使用 alipay-sdk-python 验签并解析数据。"""
+    try:
+        from payment_utils import alipay_verify_notify
+        verified, data = alipay_verify_notify()
+
+        if not verified:
+            log.warning("[Alipay] 收到未验签或验签失败的回调，已拒绝")
+            return "failure", 400
+
+        handle_verified_payment(data["order_no"], data["amount"], "alipay", data["trade_no"])
+        return "success", 200
+
+    except Exception as e:
+        db.session.rollback()
+        log.error(f"[Alipay] 回调处理失败：{e}")
+        return "failure", 400
+
 @client_bp.route("/payment-methods", methods=["GET"])
 def public_payment_methods():
     from models import PaymentConfig
@@ -87,14 +211,13 @@ def client_register():
     client = Client(email=email, password_hash=hash_password(pwd), is_active=False)
     db.session.add(client)
     db.session.commit()
-    return jsonify({
-        "token": generate_token(client.id, client.email, client.password_hash), 
-        "email": client.email, 
-        "plan": "", 
-        "is_active": False, 
-        "has_paid": False, 
-        "expires_at": None
-    })
+    token = generate_token(client.id, client.email, client.password_hash)
+    resp = make_response(jsonify({
+        "email": client.email,
+        "plan": "", "is_active": False, "has_paid": False, "expires_at": None
+    }))
+    _set_session_cookie(resp, token)
+    return resp
 
 @client_bp.route("/client/login", methods=["POST"])
 def client_login():
@@ -118,8 +241,8 @@ def client_login():
         sync_client_legacy_cycle_fields(client, cycle)
         db.session.commit()
     
-    return jsonify({
-        "token": generate_token(client.id, client.email, client.password_hash),
+    token = generate_token(client.id, client.email, client.password_hash)
+    resp = make_response(jsonify({
         "email": client.email,
         "plan": cycle.plan if cycle else client.plan,
         "billing": cycle.billing if cycle else client.billing,
@@ -128,7 +251,9 @@ def client_login():
         "has_paid": client.is_active,
         "site_configured": client.site is not None,
         "expires_at": utc_to_cst_str(cycle.expires_at) if cycle and cycle.expires_at else None,
-    })
+    }))
+    _set_session_cookie(resp, token)
+    return resp
 
 # =========================
 # 状态查询 (核心面板)
@@ -168,8 +293,6 @@ def client_status():
         "pending_cycles_count": SubscriptionCycle.query.filter_by(client_id=client.id, status="pending").count(),
         
         # 4.1 新增：内容增强相关字段
-        "user_industries": client.site.user_industries if client.site else None,
-        "user_buyer_types": client.site.user_buyer_types if client.site else None,
         
         **site_public_payload(client.site),
         
@@ -193,6 +316,7 @@ def client_status():
             "info_source": a.info_source,
             "seo_focus_keyword": a.seo_focus_keyword,
             "seo_slug": a.seo_slug,
+            "word_count": a.word_count or 0,
         } for a in articles]
     })
 
@@ -370,3 +494,32 @@ def forgot_password():
         db.session.commit()
         send_email(email, "重置密码", f"Token: {token}")
     return jsonify({"success": True})
+
+def _set_session_cookie(resp, token):
+    from config import JWT_EXPIRE_DAYS
+    resp.set_cookie(
+        "bw_session",
+        token,
+        httponly=True,
+        secure=True,
+        samesite="Lax",
+        domain=".xiaoheili.com",
+        max_age=JWT_EXPIRE_DAYS * 24 * 3600
+    )
+
+
+@client_bp.route("/client/logout", methods=["POST"])
+@require_client
+def client_logout():
+    token = request.cookies.get("bw_session")
+    payload = verify_token(token)
+    if payload and payload.get("jti"):
+        revoked = RevokedToken(
+            jti=payload["jti"],
+            expires_at=datetime.utcfromtimestamp(payload["exp"])
+        )
+        db.session.add(revoked)
+        db.session.commit()
+    resp = make_response(jsonify({"success": True}))
+    resp.delete_cookie("bw_session", domain=".xiaoheili.com")
+    return resp

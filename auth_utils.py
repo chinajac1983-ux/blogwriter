@@ -1,4 +1,5 @@
 import re
+import uuid
 import hashlib
 import jwt
 from datetime import datetime, timedelta
@@ -8,7 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from config import JWT_SECRET, JWT_EXPIRE_DAYS
 from extensions import db
-from models import Client, Admin
+from models import Client, Admin, RevokedToken
 
 
 def legacy_sha256_password(pwd):
@@ -34,6 +35,7 @@ def verify_and_upgrade_password(user, pwd):
 
 def generate_token(client_id: int, email: str, password_hash: str) -> str:
     payload = {
+        "jti": str(uuid.uuid4()),
         "sub": str(client_id),
         "email": email,
         "phf": hashlib.sha256(password_hash.encode()).hexdigest()[:16],
@@ -57,20 +59,27 @@ def verify_token(token: str) -> dict | None:
     except Exception:
         return None
 
+def is_token_revoked(jti):
+    if not jti:
+        return True
+    return RevokedToken.query.filter_by(jti=jti).first() is not None
+
 def require_client(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.headers.get("X-Client-Token")
-        email = request.headers.get("X-Client-Email")
-        if not token or not email:
+        token = request.cookies.get("bw_session")
+        if not token:
             return jsonify({"error": "unauthorized"}), 401
         payload = verify_token(token)
-        if not payload or payload.get("email") != email:
+        if not payload:
+            return jsonify({"error": "unauthorized"}), 401
+        if is_token_revoked(payload.get("jti")):
             return jsonify({"error": "unauthorized"}), 401
         try:
             client_id = int(payload.get("sub"))
         except Exception:
             return jsonify({"error": "unauthorized"}), 401
+        email = payload.get("email")
         client = Client.query.get(client_id)
         if not client or client.email != email:
             return jsonify({"error": "unauthorized"}), 401
@@ -86,7 +95,8 @@ def require_client(f):
 def require_admin(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.headers.get("X-Admin-Token")
+        # 从 httpOnly cookie 读取，JS 完全无法访问
+        token = request.cookies.get("admin_session")
         if not token:
             return jsonify({"error": "unauthorized"}), 401
         payload = verify_token(token)

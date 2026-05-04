@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Runify 运营后台</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--purple:#6c63ff;--pl:#a78bfa;--pd:#ededfe;--text:#111827;--muted:#6b7280;--hint:#9ca3af;--border:#e5e7eb;--bg:#f3f4f6;--card:#ffffff;--green:#10b981;--gd:#d1fae5;--amber:#f59e0b;--ad:#fef3c7;--red:#ef4444;--rd:#fee2e2;--blue:#2563eb;--bd:#dbeafe}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;color:var(--text);background:var(--bg);min-height:100vh}
+.topbar{background:#111827;padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between}
+.topbar-brand{display:flex;align-items:center;gap:8px}.topbar-dot{width:7px;height:7px;border-radius:50%;background:var(--purple)}.topbar-name{font-size:14px;font-weight:700;color:#fff}.topbar-tag{font-size:10px;color:var(--pl);background:rgba(108,99,255,0.2);padding:2px 8px;border-radius:10px;margin-left:2px;letter-spacing:0.06em;text-transform:uppercase}
+.topbar-right{display:flex;align-items:center;gap:1rem}.topbar-time{font-size:12px;color:#6b7280}.topbar-admin{font-size:12px;color:#9ca3af}.topbar-admin.action{cursor:pointer;background:none;border:none;font-family:inherit;font-size:12px;color:#9ca3af}.topbar-admin.action:hover{color:#fff}
+.layout{display:grid;grid-template-columns:210px 1fr;min-height:calc(100vh - 56px)}
+.sidebar{background:#1f2937;padding:1.25rem 0}.nav-section{padding:0 1rem;margin-bottom:1.5rem}.nav-label{font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#4b5563;padding:0 8px;margin-bottom:6px}.nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;font-size:13px;color:#9ca3af;cursor:pointer;transition:all 0.15s;margin-bottom:2px}.nav-item:hover{background:rgba(255,255,255,0.05);color:#e5e7eb}.nav-item.active{background:rgba(108,99,255,0.2);color:var(--pl)}.nav-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0}.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px}
+.main{padding:2rem;overflow:auto}.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem}.page-header h1{font-size:20px;font-weight:800;color:var(--text);letter-spacing:-0.01em}.page-header p{font-size:13px;color:var(--muted);margin-top:2px}.refresh-btn{padding:7px 16px;background:#fff;border:0.5px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px}.refresh-btn:hover{border-color:var(--purple);color:var(--purple)}
+.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:1rem;margin-bottom:1.5rem}.metric-card{background:#fff;border:0.5px solid var(--border);border-radius:12px;padding:1.25rem}.metric-label{font-size:12px;color:var(--muted);margin-bottom:6px}.metric-value{font-size:28px;font-weight:800;color:var(--text);letter-spacing:-0.02em}.metric-value.purple{color:var(--purple)}.metric-value.green{color:var(--green)}.metric-value.amber{color:var(--amber)}.metric-value.red{color:var(--red)}.metric-value.blue{color:var(--blue)}.metric-sub{font-size:11px;color:var(--hint);margin-top:4px}
+.card{background:#fff;border:0.5px solid var(--border);border-radius:12px;margin-bottom:1.5rem;overflow:hidden}.card-header{padding:1rem 1.25rem;border-bottom:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-between}.card-header h2{font-size:14px;font-weight:700;color:var(--text)}.card-header-actions{display:flex;gap:8px;align-items:center}.search-input{background:var(--bg);border:0.5px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--text);outline:none;font-family:inherit;width:220px}.search-input:focus{border-color:var(--purple)}
+table{width:100%;border-collapse:collapse}th{padding:10px 1.25rem;text-align:left;font-size:11px;font-weight:700;color:var(--hint);letter-spacing:0.06em;text-transform:uppercase;background:var(--bg);border-bottom:0.5px solid var(--border);white-space:nowrap}td{padding:12px 1.25rem;font-size:13px;color:var(--text);border-bottom:0.5px solid var(--border);vertical-align:middle}tr:last-child td{border-bottom:none}tr:hover td{background:#fafafa}
+.status-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;white-space:nowrap}.status-badge.running{background:var(--gd);color:var(--green)}.status-badge.pending{background:var(--ad);color:var(--amber)}.status-badge.expired{background:var(--rd);color:var(--red)}.status-badge.new{background:var(--pd);color:var(--purple)}.status-badge.makeup{background:var(--bd);color:var(--blue)}.status-dot{width:5px;height:5px;border-radius:50%;background:currentColor}.error-tag,.ok-tag,.makeup-tag{display:inline-block;font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;margin-left:4px}.error-tag{background:var(--rd);color:var(--red)}.ok-tag{background:var(--gd);color:var(--green)}.makeup-tag{background:var(--bd);color:var(--blue)}
+.progress-wrap{min-width:120px}.progress-text{font-size:12px;font-weight:700;color:var(--text);margin-bottom:5px}.progress-bar{height:6px;background:var(--bg);border-radius:20px;overflow:hidden}.progress-fill{height:100%;background:var(--purple);border-radius:20px}.progress-sub{font-size:11px;color:var(--hint);margin-top:4px}.expiry-near{color:var(--amber);font-weight:600}.expiry-ok{color:var(--muted)}.expiry-expired{color:var(--red);font-weight:600}.action-btn{padding:5px 10px;background:#fff;border:0.5px solid var(--border);border-radius:6px;font-size:11px;color:var(--muted);cursor:pointer;font-family:inherit;transition:all 0.15s;white-space:nowrap}.action-btn:hover{border-color:var(--purple);color:var(--purple)}.action-btn.primary{background:var(--purple);border-color:var(--purple);color:#fff}.action-btn.primary:hover{opacity:.88;color:#fff}.empty{text-align:center;padding:3rem;color:var(--hint);font-size:14px}.loading{padding:3rem;text-align:center;color:var(--muted);background:#fff;border-radius:12px;border:0.5px solid var(--border)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center}.modal-overlay.show{display:flex}.modal{background:#fff;border-radius:14px;padding:1.5rem;width:420px;max-width:90vw}.modal h3{font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px}.modal p{font-size:13px;color:var(--muted);margin-bottom:1.25rem;line-height:1.5}.modal-field{margin-bottom:1rem}.modal-field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}.modal-input{width:100%;background:var(--bg);border:0.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);outline:none;font-family:inherit}.modal-input:focus{border-color:var(--purple)}.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:1.25rem}.modal-cancel{padding:8px 16px;background:#fff;border:0.5px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);cursor:pointer;font-family:inherit}.modal-confirm{padding:8px 16px;background:var(--purple);border:none;border-radius:8px;font-size:13px;color:#fff;cursor:pointer;font-family:inherit;font-weight:500}
+.filter-tabs{display:flex;gap:8px;align-items:center}.filter-tab{padding:6px 12px;background:#fff;border:0.5px solid var(--border);border-radius:999px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit}.filter-tab.active{background:var(--purple);border-color:var(--purple);color:#fff}.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.form-field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}.form-input,.form-textarea{width:100%;background:var(--bg);border:0.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;color:var(--text);outline:none;font-family:inherit}.form-input:focus,.form-textarea:focus{border-color:var(--purple)}.form-textarea{min-height:92px;resize:vertical}.config-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}.config-card{background:#fff;border:0.5px solid var(--border);border-radius:12px;padding:1.25rem}.config-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}.config-title h2{font-size:15px;font-weight:800}.config-meta{font-size:12px;color:var(--hint);margin-bottom:1rem;line-height:1.7}.danger-btn{border-color:var(--red);color:var(--red)}.danger-btn:hover{border-color:var(--red);color:var(--red);background:var(--rd)}
+@media(max-width:1400px){.metrics{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1100px){.metrics{grid-template-columns:repeat(2,1fr)}.sidebar{display:none}.layout{grid-template-columns:1fr}.main{padding:1rem}table{min-width:900px}.card{overflow:auto}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-brand"><div class="topbar-dot"></div><span class="topbar-name">Runify</span><span class="topbar-tag">Admin</span></div>
+  <div class="topbar-right">
+    <span class="topbar-time" id="currentTime"></span>
+    <span class="topbar-admin" id="adminEmail">&#x1F464; 管理员</span>
+    <button class="topbar-admin action" onclick="adminLogout()">退出登录</button>
+  </div>
+</div>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="nav-section"><div class="nav-label">概览</div><div class="nav-item active" data-view="overview" onclick="showView('overview',this)"><span class="nav-icon">&#x1F4CA;</span>数据总览</div></div>
+    <div class="nav-section"><div class="nav-label">客户管理</div>
+      <div class="nav-item" data-view="clients" onclick="showView('clients',this)"><span class="nav-icon">&#x1F465;</span>所有客户<span class="nav-badge" id="errorBadge" style="display:none">!</span></div>
+      <div class="nav-item" data-view="running" onclick="showView('running',this)"><span class="nav-icon">&#x25B6;</span>运行中</div>
+      <div class="nav-item" data-view="pending" onclick="showView('pending',this)"><span class="nav-icon">&#x23F3;</span>待配置</div>
+      <div class="nav-item" data-view="makeup" onclick="showView('makeup',this)"><span class="nav-icon">&#x1F501;</span>待补发</div>
+      <div class="nav-item" data-view="expiring" onclick="showView('expiring',this)"><span class="nav-icon">&#x26A0;</span>即将到期</div>
+      <div class="nav-item" data-view="expired" onclick="showView('expired',this)"><span class="nav-icon">&#x23F0;</span>已到期</div>
+    </div>
+    <div class="nav-section"><div class="nav-label">订单管理</div>
+      <div class="nav-item" data-view="orders" onclick="showView('orders',this)"><span class="nav-icon">&#x1F9FE;</span>订单管理</div>
+    </div>
+    <div class="nav-section"><div class="nav-label">系统管理</div>
+      <div class="nav-item" data-view="prices" onclick="showView('prices',this)"><span class="nav-icon">&#x1F4B0;</span>价格管理</div>
+      <div class="nav-item" data-view="paymentConfigs" onclick="showView('paymentConfigs',this)"><span class="nav-icon">&#x1F4B3;</span>支付配置</div>
+    </div>
+    <div class="nav-section"><div class="nav-label">发布记录</div><div class="nav-item" data-view="logs" onclick="showView('logs',this)"><span class="nav-icon">&#x1F4CB;</span>发布记录</div></div>
+  </aside>
+  <main class="main" id="mainContent"><div class="loading">正在加载数据...</div></main>
+</div>
+
+<!-- 登录弹窗 -->
+<div class="modal-overlay" id="adminLoginOverlay">
+  <div class="modal">
+    <h3>管理员登录</h3>
+    <p>请输入管理员邮箱和密码，登录后进入 Runify 运营后台。</p>
+    <div class="modal-field"><label>邮箱</label><input type="email" class="modal-input" id="adminLoginEmail" placeholder="admin@example.com" autocomplete="username"></div>
+    <div class="modal-field"><label>密码</label><input type="password" class="modal-input" id="adminLoginPassword" placeholder="请输入密码" autocomplete="current-password"></div>
+    <p id="adminLoginError" style="display:none;color:var(--red);margin-bottom:0;font-size:13px"></p>
+    <div class="modal-actions"><button class="modal-confirm" onclick="adminLogin()">登录</button></div>
+  </div>
+</div>
+
+<!-- 通用操作弹窗 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 id="modalTitle">修正到期时间</h3>
+    <p id="modalDesc">仅用于人工修正到期时间，不代表续费，不会开启新周期。</p>
+    <div class="modal-field"><label id="modalLabel">新到期时间</label><input type="date" class="modal-input" id="modalInput"></div>
+    <div class="modal-actions"><button class="modal-cancel" onclick="closeModal()">取消</button><button class="modal-confirm" onclick="confirmModal()">确认</button></div>
+  </div>
+</div>
+
+<script>
+const API_BASE = 'https://api.runify.xiaoheili.com';
+
+// 所有状态变量
+var currentView = 'overview';
+var modalAction = '';
+var modalClientId = '';
+var CLIENTS = [];
+var STATS = {};
+var LOGS = [];
+var ORDERS = [];
+var PRICES = [];
+var PAYMENT_CONFIGS = [];
+var currentOrderStatus = '';
+var ordersLoaded = false;
+var pricesLoaded = false;
+var paymentConfigsLoaded = false;
+var adminEmailValue = '';
+
+// 时钟
+function updateTime() {
+  var el = document.getElementById('currentTime');
+  if (el) el.textContent = new Date().toLocaleString('zh-CN', {hour12: false});
+}
+setInterval(updateTime, 1000);
+updateTime();
+
+// ══ 鉴权：全部走 httpOnly cookie，前端不存任何 token ══
+
+function showAdminLogin() {
+  document.getElementById('adminLoginOverlay').classList.add('show');
+}
+
+function hideAdminLogin() {
+  document.getElementById('adminLoginOverlay').classList.remove('show');
+}
+
+async function adminLogin() {
+  var email = document.getElementById('adminLoginEmail').value.trim();
+  var password = document.getElementById('adminLoginPassword').value;
+  var err = document.getElementById('adminLoginError');
+  err.style.display = 'none';
+  err.textContent = '';
+
+  if (!email || !password) {
+    err.textContent = '请输入邮箱和密码';
+    err.style.display = 'block';
+    return;
+  }
+
+  try {
+    var resp = await fetch(API_BASE + '/admin/login', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email: email, password: password})
+    });
+    var data = await safeJson(resp);
+    if (!resp.ok) throw new Error(data.error || '登录失败');
+
+    adminEmailValue = data.email || email;
+    document.getElementById('adminEmail').innerHTML = '&#x1F464; ' + escapeHtml(adminEmailValue);
+    hideAdminLogin();
+    await loadAllData();
+  } catch(e) {
+    err.textContent = e.message || '登录失败';
+    err.style.display = 'block';
+  }
+}
+
+async function adminLogout() {
+  try {
+    await fetch(API_BASE + '/admin/logout', {
+      method: 'POST',
+      credentials: 'include'
+    });
+  } catch(e) {}
+  // 清空所有状态
+  CLIENTS = []; STATS = {}; LOGS = []; ORDERS = []; PRICES = []; PAYMENT_CONFIGS = [];
+  ordersLoaded = false; pricesLoaded = false; paymentConfigsLoaded = false;
+  adminEmailValue = '';
+  document.getElementById('adminEmail').innerHTML = '&#x1F464; 管理员';
+  document.getElementById('mainContent').innerHTML = '';
+  showAdminLogin();
+}
+
+async function safeJson(resp) {
+  try { return await resp.json(); } catch(e) { return {}; }
+}
+
+// 所有 admin 接口请求统一走 cookie，不再传 X-Admin-Token header
+async function adminFetch(path, options) {
+  options = options || {};
+  options.credentials = 'include';
+  options.headers = Object.assign({'Content-Type': 'application/json'}, options.headers || {});
+  var resp = await fetch(API_BASE + path, options);
+  if (resp.status === 401) {
+    showAdminLogin();
+    throw new Error('登录已失效，请重新登录');
+  }
+  return resp;
+}
+
+async function loadAllData() {
+  document.getElementById('mainContent').innerHTML = '<div class="loading">正在加载数据...</div>';
+  try {
+    var clientsResp = await adminFetch('/admin/clients', {method: 'GET'});
+    var clientsData = await safeJson(clientsResp);
+    if (!clientsResp.ok) throw new Error(clientsData.error || '客户数据加载失败');
+
+    var statsResp = await adminFetch('/admin/stats', {method: 'GET'});
+    var statsData = await safeJson(statsResp);
+    if (!statsResp.ok) throw new Error(statsData.error || '统计数据加载失败');
+
+    var logsResp = await adminFetch('/admin/logs', {method: 'GET'});
+    var logsData = await safeJson(logsResp);
+    if (!logsResp.ok) throw new Error(logsData.error || '日志数据加载失败');
+
+    CLIENTS = Array.isArray(clientsData) ? clientsData : (clientsData.clients || []);
+    STATS = statsData || {};
+    LOGS = Array.isArray(logsData) ? logsData : (logsData.logs || []);
+    updateErrorBadge();
+    render();
+  } catch(e) {
+    if (e.message !== '登录已失效，请重新登录') {
+      document.getElementById('mainContent').innerHTML = '<div class="loading">' + escapeHtml(e.message || '数据加载失败') + '</div>';
+    }
+  }
+}
+
+function updateErrorBadge() {
+  var count = CLIENTS.filter(function(c) { return Number(c.articles_failed || 0) > 0; }).length;
+  var badge = document.getElementById('errorBadge');
+  if (!badge) return;
+  if (count > 0) { badge.style.display = 'inline'; badge.textContent = count; }
+  else { badge.style.display = 'none'; }
+}
+
+function showView(view, el) {
+  currentView = view;
+  document.querySelectorAll('.nav-item').forEach(function(i) { i.classList.remove('active'); });
+  if (el) {
+    el.classList.add('active');
+  } else {
+    var target = document.querySelector('.nav-item[data-view="' + view + '"]');
+    if (target) target.classList.add('active');
+  }
+  render();
+  if (view === 'orders' && !ordersLoaded) {
+    loadOrders(currentOrderStatus).then(function() { if (currentView === 'orders') render(); });
+  } else if (view === 'prices' && !pricesLoaded) {
+    loadPrices().then(function() { if (currentView === 'prices') render(); });
+  } else if (view === 'paymentConfigs' && !paymentConfigsLoaded) {
+    loadPaymentConfigs().then(function() { if (currentView === 'paymentConfigs') render(); });
+  }
+}
+
+function render() {
+  var main = document.getElementById('mainContent');
+  if (!main) return;
+  if (currentView === 'overview') renderOverview(main);
+  else if (currentView === 'clients') renderClients(main, CLIENTS, '所有客户');
+  else if (currentView === 'running') renderClients(main, CLIENTS.filter(function(c) { var s = resolveClientStatus(c).status; return s === 'running' || s === 'error'; }), '运行中');
+  else if (currentView === 'pending') renderClients(main, CLIENTS.filter(function(c) { return resolveClientStatus(c).status === 'pending'; }), '待配置');
+  else if (currentView === 'makeup') renderClients(main, CLIENTS.filter(isMakeupClient), '待补发');
+  else if (currentView === 'expiring') renderClients(main, CLIENTS.filter(function(c) { var d = getDaysUntilExpiry(c.expires_at); return c.is_active && d <= 7 && d >= 0; }), '即将到期');
+  else if (currentView === 'expired') renderClients(main, CLIENTS.filter(function(c) { var s = resolveClientStatus(c).status; return s === 'expired' || s === 'makeup'; }), '已到期');
+  else if (currentView === 'orders') renderOrders(main);
+  else if (currentView === 'prices') renderPrices(main);
+  else if (currentView === 'paymentConfigs') renderPaymentConfigs(main);
+  else if (currentView === 'logs') renderLogs(main);
+}
+
+function renderOverview(main) {
+  var total = Number(STATS.total_clients || CLIENTS.length || 0);
+  var running = CLIENTS.filter(function(c) { var s = resolveClientStatus(c).status; return s === 'running' || s === 'error'; }).length;
+  var pending = CLIENTS.filter(function(c) { return resolveClientStatus(c).status === 'pending'; }).length;
+  var makeup = CLIENTS.filter(isMakeupClient).length;
+  var errors = CLIENTS.filter(function(c) { return Number(c.articles_failed || 0) > 0; }).length;
+  var expiring = CLIENTS.filter(function(c) { var d = getDaysUntilExpiry(c.expires_at); return c.is_active && d <= 7 && d >= 0; }).length;
+  var totalPublished = Number(STATS.total_articles || sumField(CLIENTS, 'articles_published') || 0);
+  var totalWords = Number(STATS.total_words || 0);
+
+  var html = '';
+  html += '<div class="page-header"><div><h1>数据总览</h1><p>按服务周期监控客户交付进度</p></div><button class="refresh-btn" onclick="loadAllData()">&#x21BB; 刷新</button></div>';
+  html += '<div class="metrics">';
+  html += '<div class="metric-card"><div class="metric-label">总客户数</div><div class="metric-value purple">' + total + '</div><div class="metric-sub">累计注册</div></div>';
+  html += '<div class="metric-card"><div class="metric-label">运行中</div><div class="metric-value green">' + running + '</div><div class="metric-sub">已配置且未到期</div></div>';
+  html += '<div class="metric-card"><div class="metric-label">待配置</div><div class="metric-value amber">' + pending + '</div><div class="metric-sub">已付款未开始周期</div></div>';
+  html += '<div class="metric-card"><div class="metric-label">待补发</div><div class="metric-value blue">' + makeup + '</div><div class="metric-sub">已到期但未发满</div></div>';
+  html += '<div class="metric-card"><div class="metric-label">累计发布</div><div class="metric-value">' + totalPublished + '</div><div class="metric-sub">全部成功文章</div></div>';
+  html += '<div class="metric-card"><div class="metric-label">累计字数</div><div class="metric-value blue">' + formatWanWords(totalWords) + '</div><div class="metric-sub">全部成功文章字数</div></div>';
+  html += '</div>';
+
+  if (errors > 0) { html += '<div class="card"><div class="card-header"><h2>&#x26A0; 发布失败客户</h2></div>' + renderTable(CLIENTS.filter(function(c) { return Number(c.articles_failed || 0) > 0; })) + '</div>'; }
+  if (makeup > 0) { html += '<div class="card"><div class="card-header"><h2>&#x1F501; 待补发客户</h2></div>' + renderTable(CLIENTS.filter(isMakeupClient)) + '</div>'; }
+  if (expiring > 0) { html += '<div class="card"><div class="card-header"><h2>&#x23F0; 7天内到期客户</h2></div>' + renderTable(CLIENTS.filter(function(c) { var d = getDaysUntilExpiry(c.expires_at); return c.is_active && d <= 7 && d >= 0; })) + '</div>'; }
+  html += '<div class="card"><div class="card-header"><h2>所有客户</h2><div class="card-header-actions"><input class="search-input" placeholder="搜索邮箱、品牌、网站..." oninput="filterTable(this.value)"></div></div>' + renderTable(CLIENTS) + '</div>';
+  main.innerHTML = html;
+}
+
+function renderClients(main, clients, title) {
+  var html = '<div class="page-header"><div><h1>' + escapeHtml(title) + '</h1><p>共 ' + clients.length + ' 个客户</p></div><button class="refresh-btn" onclick="loadAllData()">&#x21BB; 刷新</button></div>';
+  html += '<div class="card"><div class="card-header"><h2>客户列表</h2><div class="card-header-actions"><input class="search-input" placeholder="搜索邮箱、品牌、网站..." oninput="filterTable(this.value)"></div></div>' + renderTable(clients) + '</div>';
+  main.innerHTML = html;
+}
+
+function renderTable(clients) {
+  if (!clients || clients.length === 0) return '<div class="empty">暂无数据</div>';
+  var html = '<table><thead><tr><th>品牌 / 邮箱</th><th>状态</th><th>套餐</th><th>周期进度</th><th>周期时间</th><th>最近发布</th><th>操作</th></tr></thead><tbody>';
+  clients.forEach(function(c) {
+    var s = resolveClientStatus(c);
+    var hasError = Number(c.articles_failed || 0) > 0;
+    var isCircuitOpen = c.is_circuit_open === true;
+    var brand = c.brand_name || c.site_url || c.email || '-';
+    var plan = getPlanLabel(c.plan, c.billing);
+    var quota = Number(c.articles_quota || 0);
+    var published = Number(c.published_in_cycle || 0);
+    var remaining = Number(c.remaining_articles || Math.max(quota - published, 0));
+    var percent = quota > 0 ? Math.min(100, Math.round(published / quota * 100)) : 0;
+    var cycleStart = formatDate(c.cycle_started_at) || '—';
+    var expiry = formatDate(c.expires_at) || '—';
+    var days = getDaysUntilExpiry(c.expires_at);
+    var expiryClass = !c.expires_at ? 'expiry-ok' : days < 0 ? 'expiry-expired' : days <= 7 ? 'expiry-near' : 'expiry-ok';
+    var lastRun = formatDateTime(c.last_published_at) || '—';
+    var circuitInfo = isCircuitOpen ? '<div style="font-size:11px;color:var(--red);margin-top:3px">熔断：' + escapeHtml(formatDateTime(c.circuit_opened_at) || '未知') + '</div>' : '';
+
+    html += '<tr>';
+    html += '<td><div style="font-weight:600;color:var(--text)">' + escapeHtml(brand) + '</div><div style="font-size:11px;color:var(--hint);margin-top:2px">' + escapeHtml(c.email || '-') + '</div></td>';
+    html += '<td><span class="status-badge ' + s.className + '"><span class="status-dot"></span>' + s.label + '</span>' + (hasError ? '<span class="error-tag">报错</span>' : '') + (isCircuitOpen ? '<span class="error-tag">熔断</span>' : '') + circuitInfo + '</td>';
+    html += '<td><div style="font-weight:600">' + escapeHtml(plan) + '</div><div style="font-size:11px;color:var(--hint);margin-top:2px">累计 ' + Number(c.articles_published || 0) + ' 篇</div></td>';
+    html += '<td><div class="progress-wrap"><div class="progress-text">' + published + ' / ' + quota + ' 篇</div><div class="progress-bar"><div class="progress-fill" style="width:' + percent + '%"></div></div><div class="progress-sub">剩余 ' + remaining + ' 篇</div></div></td>';
+    html += '<td><div style="font-size:12px;color:var(--hint)">开始：' + escapeHtml(cycleStart) + '</div><div class="' + expiryClass + '" style="font-size:12px;margin-top:2px">到期：' + escapeHtml(expiry) + '</div></td>';
+    html += '<td style="font-size:12px;color:var(--hint)">' + escapeHtml(lastRun) + '</td>';
+    html += '<td><div style="display:flex;gap:6px;flex-wrap:wrap">' +
+      '<button class="action-btn" onclick="openExpiryModal(\'' + c.id + '\',\'' + expiry + '\')">修正到期</button>' +
+      '<button class="action-btn primary" onclick="triggerPublish(\'' + c.id + '\')">触发发布</button>' +
+      '<button class="action-btn" onclick="toggleClientActive(\'' + c.id + '\',' + (!c.is_active) + ')">' + (c.is_active ? '停用' : '激活') + '</button>' +
+      '<button class="action-btn" onclick="addQuota(\'' + c.id + '\')">补quota</button>' +
+      '<button class="action-btn danger-btn" onclick="resetCircuit(\'' + c.id + '\')">重置熔断</button>' +
+      '</div></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
+async function loadOrders(status) {
+  currentOrderStatus = status || '';
+  try {
+    var path = '/admin/orders';
+    if (currentOrderStatus) path += '?status=' + encodeURIComponent(currentOrderStatus);
+    var resp = await adminFetch(path, {method: 'GET'});
+    var data = await safeJson(resp);
+    if (!resp.ok) throw new Error(data.error || '订单数据加载失败');
+    ORDERS = Array.isArray(data) ? data : [];
+    ordersLoaded = true;
+  } catch(e) {
+    ORDERS = []; ordersLoaded = true;
+    if (e.message !== '登录已失效，请重新登录') alert(e.message || '订单数据加载失败');
+  }
+}
+
+async function loadPrices() {
+  try {
+    var resp = await adminFetch('/admin/prices', {method: 'GET'});
+    var data = await safeJson(resp);
+    if (!resp.ok) throw new Error(data.error || '价格数据加载失败');
+    PRICES = Array.isArray(data) ? data : [];
+    pricesLoaded = true;
+  } catch(e) {
+    PRICES = []; pricesLoaded = true;
+    if (e.message !== '登录已失效，请重新登录') alert(e.message || '价格数据加载失败');
+  }
+}
+
+async function loadPaymentConfigs() {
+  try {
+    var resp = await adminFetch('/admin/payment-configs', {method: 'GET'});
+    var data = await safeJson(resp);
+    if (!resp.ok) throw new Error(data.error || '支付配置加载失败');
+    PAYMENT_CONFIGS = Array.isArray(data) ? data : [];
+    paymentConfigsLoaded = true;
+  } catch(e) {
+    PAYMENT_CONFIGS = []; paymentConfigsLoaded = true;
+    if (e.message !== '登录已失效，请重新登录') alert(e.message || '支付配置加载失败');
+  }
+}
+
+async function switchOrderStatus(status) {
+  currentOrderStatus = status || '';
+  ordersLoaded = false;
+  render();
+  await loadOrders(currentOrderStatus);
+  if (currentView === 'orders') render();
+}
+
+function renderOrders(main) {
+  if (!ordersLoaded) { main.innerHTML = '<div class="page-header"><div><h1>订单管理</h1><p>正在加载订单数据...</p></div></div><div class="loading">正在加载订单数据...</div>'; return; }
+  var paid = ORDERS.filter(function(o) { return o.status === 'paid'; }).length;
+  var pending = ORDERS.filter(function(o) { return o.status === 'pending'; }).length;
+  var html = '<div class="page-header"><div><h1>订单管理</h1><p>查看订单状态，处理人工付款确认与退款备注</p></div><button class="refresh-btn" onclick="loadOrders(currentOrderStatus).then(render)">&#x21BB; 刷新</button></div>';
+  html += '<div class="metrics"><div class="metric-card"><div class="metric-label">当前列表</div><div class="metric-value purple">' + ORDERS.length + '</div></div><div class="metric-card"><div class="metric-label">已付款</div><div class="metric-value green">' + paid + '</div></div><div class="metric-card"><div class="metric-label">待付款</div><div class="metric-value amber">' + pending + '</div></div></div>';
+  html += '<div class="card"><div class="card-header"><h2>订单列表</h2><div class="card-header-actions"><div class="filter-tabs">';
+  html += '<button class="filter-tab ' + (!currentOrderStatus ? 'active' : '') + '" onclick="switchOrderStatus(\'\')">全部</button>';
+  html += '<button class="filter-tab ' + (currentOrderStatus === 'paid' ? 'active' : '') + '" onclick="switchOrderStatus(\'paid\')">已付款</button>';
+  html += '<button class="filter-tab ' + (currentOrderStatus === 'pending' ? 'active' : '') + '" onclick="switchOrderStatus(\'pending\')">待付款</button>';
+  html += '</div></div></div>';
+  if (!ORDERS.length) { html += '<div class="empty">暂无订单</div></div>'; main.innerHTML = html; return; }
+  html += '<table><thead><tr><th>订单号</th><th>客户邮箱</th><th>套餐</th><th>金额</th><th>支付方式</th><th>状态</th><th>创建时间</th><th>付款时间</th><th>操作</th></tr></thead><tbody>';
+  ORDERS.forEach(function(o) {
+    var statusClass = o.status === 'paid' ? 'running' : (o.status === 'pending' ? 'pending' : 'expired');
+    html += '<tr><td style="font-weight:600">' + escapeHtml(o.order_no || '-') + '</td><td>' + escapeHtml(o.client_email || '-') + '</td><td>' + escapeHtml(getPlanLabel(o.plan, o.billing)) + '</td><td style="font-weight:700">￥' + escapeHtml(String(o.price_yuan || 0)) + '</td><td>' + escapeHtml(o.pay_method || '-') + '</td><td><span class="status-badge ' + statusClass + '"><span class="status-dot"></span>' + escapeHtml(o.status || '-') + '</span></td><td style="font-size:12px;color:var(--hint)">' + escapeHtml(formatDateTime(o.created_at) || '—') + '</td><td style="font-size:12px;color:var(--hint)">' + escapeHtml(formatDateTime(o.paid_at) || '—') + '</td><td><div style="display:flex;gap:6px;flex-wrap:wrap">';
+    if (o.status === 'pending') html += '<button class="action-btn primary" onclick="markOrderPaid(\'' + o.order_no + '\')">标记已付</button>';
+    html += '<button class="action-btn" onclick="updateRefundNote(\'' + o.order_no + '\',\'' + escapeAttr(o.refund_note || '') + '\')">退款备注</button></div></td></tr>';
+  });
+  html += '</tbody></table></div>';
+  main.innerHTML = html;
+}
+
+function renderPrices(main) {
+  if (!pricesLoaded) { main.innerHTML = '<div class="loading">正在加载价格数据...</div>'; return; }
+  var html = '<div class="page-header"><div><h1>价格管理</h1><p>维护套餐价格、周期篇数与启用状态</p></div><button class="refresh-btn" onclick="loadPrices().then(render)">&#x21BB; 刷新</button></div>';
+  html += '<div class="card"><div class="card-header"><h2>价格列表</h2></div>';
+  if (!PRICES.length) { html += '<div class="empty">暂无价格数据</div></div>'; main.innerHTML = html; return; }
+  html += '<table><thead><tr><th>套餐</th><th>周期</th><th>价格</th><th>篇数/周期</th><th>总篇数</th><th>状态</th><th>更新时间</th><th>操作</th></tr></thead><tbody>';
+  PRICES.forEach(function(p) {
+    html += '<tr><td style="font-weight:700">' + escapeHtml(p.plan || '-') + '</td><td>' + escapeHtml(p.billing || '-') + '</td><td style="font-weight:800">￥' + escapeHtml(String(p.price_yuan || 0)) + '</td><td>' + escapeHtml(String(p.weekly_articles || 0)) + '</td><td>' + escapeHtml(String(p.articles_quota || 0)) + '</td><td><span class="status-badge ' + (p.is_active ? 'running' : 'expired') + '"><span class="status-dot"></span>' + (p.is_active ? '启用' : '禁用') + '</span></td><td style="font-size:12px;color:var(--hint)">' + escapeHtml(formatDateTime(p.updated_at) || '—') + '</td><td><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="action-btn" onclick="editPrice(\'' + p.plan + '\',\'' + p.billing + '\',' + Number(p.amount || 0) + ',' + Number(p.weekly_articles || 0) + ',' + Number(p.articles_quota || 0) + ')">修改价格</button><button class="action-btn ' + (p.is_active ? 'danger-btn' : 'primary') + '" onclick="togglePrice(' + Number(p.id) + ',' + (!p.is_active) + ')">' + (p.is_active ? '禁用' : '启用') + '</button></div></td></tr>';
+  });
+  html += '</tbody></table></div>';
+  main.innerHTML = html;
+}
+
+function renderPaymentConfigs(main) {
+  if (!paymentConfigsLoaded) { main.innerHTML = '<div class="loading">正在加载支付配置...</div>'; return; }
+  var wechat = getPaymentConfig('wechat');
+  var alipay = getPaymentConfig('alipay');
+  var html = '<div class="page-header"><div><h1>支付配置</h1><p>配置微信支付和支付宝参数，敏感字段只保存不回显</p></div><button class="refresh-btn" onclick="loadPaymentConfigs().then(render)">&#x21BB; 刷新</button></div>';
+  html += '<div class="config-grid">' + renderPaymentCard('wechat', '微信支付', wechat, ['appid', 'mch_id', 'api_v3_key', 'public_key', 'public_key_id'], true) + renderPaymentCard('alipay', '支付宝', alipay, ['app_id', 'private_key', 'alipay_public_key'], false) + '</div>';
+  main.innerHTML = html;
+}
+
+function renderPaymentCard(provider, title, cfg, fields, showCert) {
+  var active = cfg && cfg.is_active;
+  var hasConfig = cfg && cfg.config_keys && cfg.config_keys.length > 0;
+  var hasCert = cfg && cfg.has_cert;
+  var html = '<div class="config-card"><div class="config-title"><h2>' + escapeHtml(title) + '</h2><span class="status-badge ' + (active ? 'running' : 'pending') + '"><span class="status-dot"></span>' + (active ? '已启用' : '未启用') + '</span></div>';
+  html += '<div class="config-meta">当前状态：' + (hasConfig ? '已配置' : '未配置') + (showCert ? ' ｜ 证书：' + (hasCert ? '已上传' : '未上传') : '') + '<br>已保存字段：' + escapeHtml((cfg && cfg.config_keys && cfg.config_keys.join(' / ')) || '无') + '</div>';
+  html += '<div class="form-grid">';
+  fields.forEach(function(f) {
+    if (provider === 'wechat' && f === 'public_key') {
+      html += '<div class="form-field"><label>' + escapeHtml(f) + '</label><textarea class="form-textarea" id="' + provider + '_' + f + '" placeholder="请输入 ' + escapeHtml(f) + '" rows="4"></textarea></div>';
+    } else {
+      html += '<div class="form-field"><label>' + escapeHtml(f) + '</label><input class="form-input" id="' + provider + '_' + f + '" placeholder="请输入 ' + escapeHtml(f) + '"></div>';
+    }
+  });
+  html += '</div>';
+  html += '<div class="modal-actions" style="justify-content:flex-start">';
+  html += '<button class="action-btn primary" onclick="saveAllPaymentConfig(\'' + provider + '\')">保存全部配置</button>';
+  html += '<button class="action-btn ' + (active ? 'danger-btn' : '') + '" ' + (hasConfig ? '' : 'disabled') + ' onclick="togglePaymentConfig(\'' + provider + '\',' + (!active) + ')">' + (active ? '禁用' : '启用') + '</button>';
+  html += '</div>';
+  if (showCert) {
+    html += '<div class="form-field" style="margin-top:1rem"><label>证书 PEM 文本（apiclient_cert.pem）</label><textarea class="form-textarea" id="' + provider + '_cert_content" placeholder="-----BEGIN CERTIFICATE-----\n..."></textarea></div>';
+    html += '<div class="form-field" style="margin-top:1rem"><label>私钥 PEM 文本（apiclient_key.pem）</label><textarea class="form-textarea" id="' + provider + '_cert_key_content" placeholder="-----BEGIN PRIVATE KEY-----\n..."></textarea></div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function getPaymentConfig(provider) {
+  return (PAYMENT_CONFIGS || []).find(function(c) { return c.provider === provider; }) || null;
+}
+
+async function markOrderPaid(orderNo) {
+  if (!confirm('确认将该订单手动标记为已付款吗？')) return;
+  try {
+    var resp = await adminFetch('/admin/mark-order-paid', {method: 'POST', body: JSON.stringify({order_no: orderNo})});
+    var data = await safeJson(resp);
+    if (!resp.ok) throw new Error(data.error || '标记失败');
+    alert('订单已标记为已付款');
+    await loadOrders(currentOrderStatus);
+    render();
+  } catch(e) { alert(e.message || '标记失败'); }
+}
+
+async function updateRefundNote(orderNo, currentNote) {
+  var note = prompt('请输入退款备注', currentNote || '');
+  if (note === null) return;
+  try {
+    var resp = await adminFetch('/admin/update-refund-note', {method: 'POST', body: JSON.stringify({order_no: orderNo, note: note})});
+    var data = await safeJson(resp);
+    if (!resp.ok) throw new Error(data.error || '保存失败');
+    alert('退款备注已保存');
+    await loadOrders(currentOrderStatus);
+    render();
+  } catch(e) { alert(e.message || '保存失败'); }
+}
+
+async function editPrice(plan, billing, amount, weeklyArticles, articlesQuota) {
+  var newAmount = prompt('价格，单位：分', amount);
+  if (newAmount === null) return;
+  var newWeekly = prompt('篇数/周期', weeklyArticles);
+  if (newWeekly === null) return;
+  var newQuota = prompt('总篇数', articlesQuota);
+  if (newQuota === null) return;
+  try {
+    var resp = await adminFetch('/admin/update-price', {method: 'POST', body: JSON.stringify({plan: plan, billing: billing, amount: Number(newAmount), weekly_articles: Number(newWeekly), articles_quota: Number(newQuota)})});
+    var data = await safeJson(resp);
+    if (!resp.ok) throw new Error(data.error || '修改失败');
+    alert('价格已修改');
+    await loadPrices();
+    render();
+  } catch(e) { alert(e.message || '修改失败'); }
+}
+
+async function togglePrice(id, isActive) {
+  if (!confirm('确认' + (isActive ? '启用' : '禁用') + '该套餐吗？')) return;
+  try {
+    var resp = await adminFetch('/admin/toggle-price', {method: 'POST', body: JSON.stringify({id: id, is_active: isActive})});
+    var data = await safeJson(resp);
+    if (!resp.ok) throw new Error(data.error || '操作失败');
+    await loadPrices();
+    render();
+  } catch(e) { alert(e.message || '操作失败'); }
+}
+
+async function saveAllPaymentConfig(provider) {
+  var fields = provider === 'wechat' ? ['appid', 'mch_id', 'api_v3_key', 'public_key', 'public_key_id'] : ['app_id', 'private_key', 'alipay_public_key'];
+  var config = {};
+  fields.forEach(function(f) { config[f] = (document.getElementById(provider + '_' + f).value || '').trim(); });
+
+  var missing = fields.filter(function(f) { return !config[f]; });
+  if (missing.length > 0) { alert('请填写以下必填字段：' + missing.join(', ')); return; }
+
+  var cert = provider === 'wechat' ? (document.getElementById(provider + '_cert_content').value || '').trim() : '';
+  var certKey = provider === 'wechat' ? (document.getElementById(provider + '_cert_key_content').value || '').trim() : '';
+
+  if (provider === 'wechat' && !cert) { alert('请填写证书 PEM 文本（apiclient_cert.pem）'); return; }
+  if (provider === 'wechat' && !certKey) { alert('请填写私钥 PEM 文本（apiclient_key.pem）'); return; }
+
+  try {
+    var resp = await adminFetch('/admin/payment-configs', {method: 'POST', body: JSON.stringify({provider: provider, is_active: false, config: config})});
+    var data = await safeJson(resp);
+    if (!resp.ok) throw new Error(data.error || '保存配置失败');
+  } catch(e) { alert(e.message || '保存配置失败'); return; }
+
+  if (cert) {
+    try {
+      var resp2 = await adminFetch('/admin/payment-configs/' + provider + '/upload-cert', {method: 'POST', body: JSON.stringify({cert_content: cert, cert_key_content: certKey})});
+      var data2 = await safeJson(resp2);
+      if (!resp2.ok) throw new Error(data2.error || '上传证书失败');
+    } catch(e) { alert(e.message || '上传证书失败'); return; }
+  }
+
+  alert('配置保存成功');
+  await loadPaymentConfigs();
+  render();
+}
+
+async function togglePaymentConfig(provider, isActive) {
+  try {
+    var resp = await adminFetch('/admin/payment-configs/' + provider + '/toggle', {method: 'POST', body: JSON.stringify({is_active: isActive})});
+    var data = await safeJson(resp);
+    if (!resp.ok) throw new Error(data.error || '操作失败');
+    await loadPaymentConfigs();
+    render();
+  } catch(e) { alert(e.message || '操作失败'); }
+}
+
+async function toggleClientActive(clientId, isActive) {
+  if (!confirm('确认' + (isActive ? '激活' : '停用') + '该客户吗？')) return;
+  try {
+    var resp = await adminFetch('/admin/set-client-active', {method: 'POST', body: JSON.stringify({client_id: clientId, is_active: isActive})});
+    var data = await safeJson(resp);
+    if (!resp.ok) throw new Error(data.error || '操作失败');
+    alert('客户状态已更新');
+    await loadAllData();
+  } catch(e) { alert(e.message || '操作失败'); }
+}
+
+async function addQuota(clientId) {
+  var count = prompt('请输入要补充的 quota 数量', '1');
+  if (count === null) return;
+  count = Number(count);
+  if (!count || count <= 0) { alert('补充数量必须大于0'); return; }
+  try {
+    var resp = await adminFetch('/admin/add-quota', {method: 'POST', body: JSON.stringify({client_id: clientId, add_count: count})});
+    var data = await safeJson(resp);
+    if (!resp.ok) throw new Error(data.error || '补 quota 失败');
+    alert('quota 已补充');
+    await loadAllData();
+  } catch(e) { alert(e.message || '补 quota 失败'); }
+}
+
+async function resetCircuit(clientId) {
+  if (!confirm('确认重置该客户的熔断状态吗？')) return;
+  try {
+    var resp = await adminFetch('/admin/reset-circuit', {method: 'POST', body: JSON.stringify({client_id: clientId})});
+    var data = await safeJson(resp);
+    if (!resp.ok) throw new Error(data.error || '重置失败');
+    alert(data.message || '熔断已重置');
+    await loadAllData();
+  } catch(e) { alert(e.message || '重置失败'); }
+}
+
+function renderLogs(main) {
+  var html = '<div class="page-header"><div><h1>发布记录</h1><p>所有客户的博文发布日志</p></div><button class="refresh-btn" onclick="loadAllData()">&#x21BB; 刷新</button></div>';
+  html += '<div class="card"><div class="card-header"><h2>发布日志</h2></div>';
+  if (!LOGS || LOGS.length === 0) { html += '<div class="empty">暂无发布记录</div></div>'; main.innerHTML = html; return; }
+  html += '<table><thead><tr><th>时间</th><th>客户</th><th>博文标题</th><th>字数</th><th>状态</th><th>错误信息</th></tr></thead><tbody>';
+  LOGS.forEach(function(l) {
+    var ok = l.status === 'published';
+    html += '<tr><td style="font-size:12px;color:var(--hint);white-space:nowrap">' + escapeHtml(formatDateTime(l.published_at || l.created_at) || '—') + '</td><td style="font-weight:500">' + escapeHtml(l.client_name || l.client_email || '-') + '</td><td style="font-size:13px;color:var(--muted)">' + escapeHtml(l.title || '-') + '</td><td style="font-size:12px;color:var(--hint)">' + (l.word_count ? l.word_count + ' 词' : '-') + '</td><td>' + (ok ? '<span class="ok-tag">成功</span>' : '<span class="error-tag">失败</span>') + '</td><td style="font-size:12px;color:var(--red)">' + escapeHtml(l.error_msg || '') + '</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  main.innerHTML = html;
+}
+
+// ── 客户状态判断（修复 has_pending_cycle 问题）──
+function resolveClientStatus(c) {
+  if (!c.is_active) return {status: 'unpaid', label: '未付费', className: 'new'};
+  if (!c.site_configured) return {status: 'pending', label: '待配置', className: 'pending'};
+  // 使用后端返回的 has_pending_cycle 字段
+  if (c.cycle_status === 'completed' && !c.has_pending_cycle) return {status: 'expired', label: '周期已完成', className: 'expired'};
+  if (c.cycle_status === 'active' && Number(c.articles_failed || 0) > 0) return {status: 'error', label: '运行中', className: 'running'};
+  return {status: 'running', label: '运行中', className: 'running'};
+}
+
+function isMakeupClient(c) {
+  // 使用后端返回的 has_pending_cycle 字段
+  return !!(c && c.is_active && c.cycle_status === 'completed' && !c.has_pending_cycle && Number(c.remaining_articles || 0) > 0);
+}
+
+function openExpiryModal(clientId, value) {
+  modalAction = 'expiry';
+  modalClientId = clientId;
+  document.getElementById('modalTitle').textContent = '修正到期时间';
+  document.getElementById('modalDesc').textContent = '仅用于人工修正到期时间，不代表续费，不会开启新周期。';
+  document.getElementById('modalLabel').textContent = '新到期时间';
+  var input = document.getElementById('modalInput');
+  input.type = 'date';
+  input.value = value && value !== '—' ? value : '';
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+
+async function confirmModal() {
+  var val = document.getElementById('modalInput').value;
+  if (!val) { alert('请填写完整'); return; }
+  if (modalAction === 'expiry') {
+    var days = Math.ceil((new Date(val + 'T23:59:59') - new Date()) / (1000 * 60 * 60 * 24));
+    if (days <= 0) { alert('到期时间必须晚于今天'); return; }
+    try {
+      var resp = await adminFetch('/admin/update-expiry', {method: 'POST', body: JSON.stringify({client_id: modalClientId, days: days})});
+      var data = await safeJson(resp);
+      if (!resp.ok) throw new Error(data.error || '到期时间修正失败');
+      alert('到期时间已修正');
+      closeModal();
+      await loadAllData();
+    } catch(e) { alert(e.message || '到期时间修正失败'); }
+  }
+}
+
+async function triggerPublish(clientId) {
+  if (!confirm('确认手动触发该客户发布吗？系统仍会检查周期额度，发满不会多发。')) return;
+  try {
+    var resp = await adminFetch('/admin/trigger-publish', {method: 'POST', body: JSON.stringify({client_id: clientId})});
+    var data = await safeJson(resp);
+    if (!resp.ok) throw new Error(data.error || '触发发布失败');
+    alert('已触发发布任务');
+    await loadAllData();
+  } catch(e) { alert(e.message || '触发发布失败'); }
+}
+
+function filterTable(query) {
+  var q = String(query || '').toLowerCase();
+  document.querySelectorAll('tbody tr').forEach(function(row) {
+    row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+// ── 工具函数 ──
+function getPlanLabel(plan, billing) {
+  var p = {trial: '首月体验', standard: '标准版', pro: '专业版'}[plan] || plan || '-';
+  var b = {monthly: '月付', quarterly: '季付', yearly: '年付'}[billing] || billing || '';
+  return b ? p + ' / ' + b : p;
+}
+function getDaysUntilExpiry(value) { if (!value) return 999999; return Math.ceil((new Date(value) - new Date()) / (1000 * 60 * 60 * 24)); }
+function sumField(list, field) { return (list || []).reduce(function(sum, item) { return sum + Number(item[field] || 0); }, 0); }
+function formatWanWords(n) { n = Number(n || 0); if (n < 10000) return n + ' 字'; return (Math.round(n / 1000) / 10) + ' 万字'; }
+function formatDate(value) { if (!value) return ''; return String(value).slice(0, 10); }
+function formatDateTime(value) { if (!value) return ''; return String(value).replace('T', ' ').slice(0, 16); }
+function escapeHtml(str) { return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+function escapeAttr(str) { return escapeHtml(str).replace(/`/g, '&#096;'); }
+
+// 事件绑定
+document.getElementById('modalOverlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+document.getElementById('adminLoginOverlay').addEventListener('click', function(e) { e.stopPropagation(); });
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && document.getElementById('adminLoginOverlay').classList.contains('show')) adminLogin();
+});
+
+// 启动：直接尝试加载数据，如果 cookie 有效就直接进，无效就弹登录框
+(async function() {
+  try {
+    var resp = await fetch(API_BASE + '/admin/clients', {
+      method: 'GET',
+      credentials: 'include',
+      headers: {'Content-Type': 'application/json'}
+    });
+    if (resp.status === 401) {
+      showAdminLogin();
+      return;
+    }
+    // cookie 有效，加载所有数据
+    await loadAllData();
+  } catch(e) {
+    showAdminLogin();
+  }
+})();
+</script>
+</body>
+</html>

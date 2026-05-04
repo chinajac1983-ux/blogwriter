@@ -162,6 +162,10 @@ def wechat_verify_notify():
             "Wechatpay-Nonce": request.headers.get("Wechatpay-Nonce", ""),
             "Wechatpay-Signature": request.headers.get("Wechatpay-Signature", ""),
             "Wechatpay-Serial": request.headers.get("Wechatpay-Serial", ""),
+            "Wechatpay-Signature-Type": request.headers.get(
+                     "Wechatpay-Signature-Type",
+                     "WECHATPAY2-SHA256-RSA2048"
+            ),
         }
         body = request.data.decode("utf-8")
 

@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, make_response, g
 
 from auth_utils import require_admin, generate_admin_token, verify_and_upgrade_password
 from extensions import db
@@ -11,14 +11,27 @@ from cycle_utils import get_active_cycle, get_next_pending_cycle, get_latest_com
 from site_utils import site_wp_test_is_current, circuit_requires_new_test
 from time_utils import utc_to_cst_str
 from scheduler_jobs import publish_lock_is_active, run_publish_job, register_schedule
-from config import DELIVERED_ARTICLE_STATUSES
+from config import DELIVERED_ARTICLE_STATUSES, JWT_EXPIRE_DAYS
 from crypto_utils import encrypt, decrypt
 
 admin_bp = Blueprint('admin', __name__)
 
 
+def _set_admin_cookie(resp, token):
+    """种 httpOnly admin session cookie，JS 完全无法读取。"""
+    resp.set_cookie(
+        "admin_session",
+        token,
+        httponly=True,
+        secure=True,
+        samesite="Lax",
+        domain=".xiaoheili.com",
+        max_age=JWT_EXPIRE_DAYS * 24 * 3600
+    )
+
+
 # ══════════════════════════════════════════════════════════════════
-# 登录
+# 登录 / 退出
 # ══════════════════════════════════════════════════════════════════
 
 @admin_bp.route("/admin/login", methods=["POST"])
@@ -34,7 +47,17 @@ def admin_login():
     admin = Admin.query.filter_by(email=email).first()
     if not admin or not verify_and_upgrade_password(admin, password):
         return jsonify({"error": "邮箱或密码错误"}), 401
-    return jsonify({"token": generate_admin_token(admin.id, admin.email, admin.password_hash), "email": admin.email})
+    token = generate_admin_token(admin.id, admin.email, admin.password_hash)
+    resp = make_response(jsonify({"success": True, "email": admin.email}))
+    _set_admin_cookie(resp, token)
+    return resp
+
+
+@admin_bp.route("/admin/logout", methods=["POST"])
+def admin_logout():
+    resp = make_response(jsonify({"success": True}))
+    resp.delete_cookie("admin_session", domain=".xiaoheili.com")
+    return resp
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -88,6 +111,7 @@ def admin_clients():
             "published_in_cycle": cycle_published,
             "remaining_articles": cycle_remaining,
             "pending_cycles_count": SubscriptionCycle.query.filter_by(client_id=c.id, status="pending").count(),
+            "has_pending_cycle": pending_cycle is not None,
             "schedule": {
                 "interval_hours": c.schedule.interval_hours if c.schedule else None,
                 "start_date": utc_to_cst_str(c.schedule.start_date) if c.schedule and c.schedule.start_date else None,
@@ -327,7 +351,6 @@ def admin_orders():
         q = q.filter_by(client_id=client_id)
 
     orders = q.limit(limit).all()
-    # PaymentOrder 没有 client relationship，用 client_id 查询
     client_ids = list({o.client_id for o in orders if o.client_id})
     clients_map = {c.id: c for c in Client.query.filter(Client.id.in_(client_ids)).all()}
     return jsonify([{
@@ -392,7 +415,6 @@ def admin_payment_configs():
     rows = PaymentConfig.query.order_by(PaymentConfig.provider).all()
     result = []
     for r in rows:
-        # 解密后只返回字段名，不返回值，避免密钥泄露
         config_keys = []
         if r.config_json:
             try:
@@ -406,7 +428,7 @@ def admin_payment_configs():
             "is_active": r.is_active,
             "has_cert": bool(r.cert_file),
             "has_cert_key": bool(r.cert_key),
-            "config_keys": config_keys,   # 只返回字段名，不返回值
+            "config_keys": config_keys,
             "updated_at": utc_to_cst_str(r.updated_at) if r.updated_at else None,
             "updated_by": r.updated_by or "",
         })
@@ -416,30 +438,7 @@ def admin_payment_configs():
 @admin_bp.route("/admin/payment-configs", methods=["POST"])
 @require_admin
 def admin_upsert_payment_config():
-    """新增或更新支付渠道配置，config_json 加密存库。
-    
-    请求体示例（微信）：
-    {
-        "provider": "wechat",
-        "is_active": true,
-        "config": {
-            "appid": "wx...",
-            "mch_id": "1234567890",
-            "api_v3_key": "..."
-        }
-    }
-    
-    请求体示例（支付宝）：
-    {
-        "provider": "alipay",
-        "is_active": true,
-        "config": {
-            "app_id": "2021...",
-            "private_key": "MIIEow...",
-            "alipay_public_key": "MIIBIj..."
-        }
-    }
-    """
+    """新增或更新支付渠道配置，config_json 加密存库。"""
     data = request.get_json() or {}
     provider = (data.get("provider") or "").strip().lower()
     is_active = data.get("is_active", False)
@@ -450,7 +449,6 @@ def admin_upsert_payment_config():
     if not config:
         return jsonify({"error": "config 不能为空"}), 400
 
-    # 按渠道校验必填字段
     required_fields = {
         "wechat": ["appid", "mch_id", "api_v3_key", "public_key", "public_key_id"],
         "alipay": ["app_id", "private_key", "alipay_public_key"],
@@ -464,7 +462,6 @@ def admin_upsert_payment_config():
     except Exception as e:
         return jsonify({"error": f"配置加密失败：{e}"}), 500
 
-    from flask import g
     admin_email = g.admin.email if hasattr(g, "admin") else ""
 
     row = PaymentConfig.query.filter_by(provider=provider).first()
@@ -501,16 +498,7 @@ def admin_toggle_payment_config(provider):
 @admin_bp.route("/admin/payment-configs/<provider>/upload-cert", methods=["POST"])
 @require_admin
 def admin_upload_payment_cert(provider):
-    """上传证书和私钥（PEM 文本），加密存库。
-    
-    请求体：
-    {
-        "cert_content": "-----BEGIN CERTIFICATE-----
-...",
-        "cert_key_content": "-----BEGIN PRIVATE KEY-----
-..."
-    }
-    """
+    """上传证书和私钥（PEM 文本），加密存库。"""
     if provider not in ("wechat", "alipay"):
         return jsonify({"error": "provider 只支持 wechat 或 alipay"}), 400
 
@@ -532,9 +520,7 @@ def admin_upload_payment_cert(provider):
     if not row:
         return jsonify({"error": f"渠道 {provider} 未配置，请先保存基本配置"}), 404
 
-    from flask import g
     admin_email = g.admin.email if hasattr(g, "admin") else ""
-
     row.cert_file = encrypted_cert
 
     if cert_key_content:
@@ -558,7 +544,7 @@ def admin_upload_payment_cert(provider):
 
 
 # ══════════════════════════════════════════════════════════════════
-# 4.0 新增：行业新闻管理
+# 行业新闻管理
 # ══════════════════════════════════════════════════════════════════
 
 @admin_bp.route("/admin/industry-news", methods=["GET"])
@@ -566,7 +552,7 @@ def admin_upload_payment_cert(provider):
 def admin_industry_news():
     """查看行业新闻库，支持按客户、来源轨道筛选。"""
     client_id = request.args.get("client_id", type=int)
-    source = request.args.get("source")        # "self" / "hermes"
+    source = request.args.get("source")
     source_api = request.args.get("source_api")
     limit = request.args.get("limit", 50, type=int)
 
@@ -604,7 +590,6 @@ def admin_industry_news():
 def admin_industry_news_stats():
     """行业新闻库统计：各来源数量、过期情况。"""
     from sqlalchemy import func
-    from datetime import datetime
 
     now = datetime.utcnow()
     total = IndustryNews.query.count()
@@ -667,7 +652,7 @@ def admin_delete_industry_news(news_id):
 
 
 # ══════════════════════════════════════════════════════════════════
-# 4.0 新增：文章质检统计
+# 文章质检统计
 # ══════════════════════════════════════════════════════════════════
 
 @admin_bp.route("/admin/article-quality-stats", methods=["GET"])
@@ -676,11 +661,9 @@ def admin_article_quality_stats():
     """文章质检统计，用于AB测试对比和质量监控。"""
     from sqlalchemy import func
 
-    # 总体质检覆盖
     total_checked = Article.query.filter(Article.quality_score.isnot(None)).count()
     total_unchecked = Article.query.filter(Article.quality_score.is_(None)).count()
 
-    # 质量分布
     high = Article.query.filter(Article.quality_score >= 85).count()
     mid = Article.query.filter(
         Article.quality_score >= 70,
@@ -691,22 +674,18 @@ def admin_article_quality_stats():
         Article.quality_score < 70
     ).count()
 
-    # 平均分
     avg_score = db.session.query(
         func.avg(Article.quality_score)
     ).filter(Article.quality_score.isnot(None)).scalar()
 
-    # 重写触发率
     rewritten = Article.query.filter(Article.quality_rewrite_count > 0).count()
 
-    # needs_review 数量（质检低分且已发布）
     needs_review = Article.query.filter(
         Article.quality_score.isnot(None),
         Article.quality_score < 70,
         Article.status.in_(["draft", "published"])
     ).count()
 
-    # AB测试：按info_source分组
     by_source = db.session.query(
         Article.info_source,
         func.count(Article.id),
@@ -715,7 +694,6 @@ def admin_article_quality_stats():
         Article.quality_score.isnot(None)
     ).group_by(Article.info_source).all()
 
-    # 按客户分组的质检情况（只返回有问题的）
     problem_clients = db.session.query(
         Article.client_id,
         func.count(Article.id).label("low_count"),
@@ -727,7 +705,6 @@ def admin_article_quality_stats():
         func.count(Article.id) >= 2
     ).all()
 
-    # 查询客户邮箱
     client_ids = [row[0] for row in problem_clients]
     clients_map = {c.id: c.email for c in Client.query.filter(Client.id.in_(client_ids)).all()}
 

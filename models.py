@@ -366,3 +366,11 @@ class IndustryNews(db.Model):
     # expires_at = created_at + 60天，启动时自动清理过期记录
 
     client = db.relationship("Client", backref="industry_news")
+
+
+class RevokedToken(db.Model):
+    __tablename__ = "revoked_tokens"
+    id = db.Column(db.Integer, primary_key=True)
+    jti = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    revoked_at = db.Column(db.DateTime, default=datetime.utcnow)

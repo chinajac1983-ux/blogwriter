@@ -13,6 +13,7 @@ import multiprocessing
 import logging
 from flask import Flask, jsonify
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from extensions import db, scheduler
 from config import SQLALCHEMY_DATABASE_URI, SQLALCHEMY_TRACK_MODIFICATIONS
@@ -41,6 +42,7 @@ log = logging.getLogger(__name__)
 
 def create_app():
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
     # =========================
     # 基础配置
@@ -49,7 +51,12 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = SQLALCHEMY_TRACK_MODIFICATIONS
 
     db.init_app(app)
-    CORS(app) # 确保处理跨域请求
+    CORS(app,
+        origins=["https://runify.xiaoheili.com"],
+        supports_credentials=True,
+        allow_headers=["Content-Type"],
+        methods=["GET", "POST", "DELETE", "OPTIONS"]
+    )
 
     # =========================
     # 注册蓝图
